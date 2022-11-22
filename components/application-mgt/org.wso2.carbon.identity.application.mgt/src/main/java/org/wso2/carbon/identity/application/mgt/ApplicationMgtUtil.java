@@ -29,6 +29,7 @@ import org.wso2.carbon.context.CarbonContext;
 import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.context.RegistryType;
 import org.wso2.carbon.identity.application.common.IdentityApplicationManagementException;
+import org.wso2.carbon.identity.application.common.model.ApplicationBasicInfo;
 import org.wso2.carbon.identity.application.common.model.ApplicationPermission;
 import org.wso2.carbon.identity.application.common.model.InboundAuthenticationRequestConfig;
 import org.wso2.carbon.identity.application.common.model.PermissionsAndRoleConfig;
@@ -116,6 +117,85 @@ public class ApplicationMgtUtil {
 
         return true;
     }
+
+
+    /**
+     * @param applicationInfos
+     * @param username
+     * @return a filtered list of ApplicationBasicInfo
+     * @throws IdentityApplicationManagementException
+     */
+    public static ArrayList<ApplicationBasicInfo> filterApplicationsForUser(
+        ApplicationBasicInfo[] applicationInfos, String username
+        )
+            throws IdentityApplicationManagementException {
+
+        // Initialize list to return
+        ArrayList<ApplicationBasicInfo> authorizedAppInfo = new ArrayList<ApplicationBasicInfo>();
+
+        // Check whether roles validation is enabled
+        // If we do not validate the roles, return the whole list of applications
+        boolean validateRoles = validateRoles();
+        if (!validateRoles) {
+            if (log.isDebugEnabled()) {
+                log.debug(String.format("Validating user with application roles is disabled. Therefore, " +
+                        "user: %s will be authorized for all applications", username));
+            }
+            
+            // return new ArrayList<ApplicationBasicInfo>(applicationInfos);
+            return new ArrayList<ApplicationBasicInfo>(
+                (List<ApplicationBasicInfo>) Arrays.asList(applicationInfos));
+
+        }
+
+        // Get user store
+        try {
+            UserStoreManager userStoreManager = CarbonContext.getThreadLocalCarbonContext().getUserRealm()
+                            .getUserStoreManager();
+
+            // List roles from user store
+            String[] userRoles = userStoreManager.getRoleListOfUser(username);
+
+            // For each app, check whether the user the corresponding application role
+            for (ApplicationBasicInfo applicationBasicInfo : applicationInfos) {
+
+                String applicationName = applicationBasicInfo.getApplicationName();
+
+                String applicationRoleName = getAppRoleName(applicationName);
+
+                try {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                            "Checking whether user has role : " + applicationRoleName
+                            + " by retrieving role list of " + "user : " + username);
+                    }
+        
+                    if (userStoreManager instanceof AbstractUserStoreManager) {
+                        if (((AbstractUserStoreManager) userStoreManager).isUserInRole(username, applicationRoleName)) {
+                            authorizedAppInfo.add(applicationBasicInfo);
+                        }
+                    }
+
+                    for (String userRole : userRoles) {
+                        if (applicationRoleName.equals(userRole)) {
+                            authorizedAppInfo.add(applicationBasicInfo);
+                        }
+                    }
+
+                } catch (UserStoreException e) {
+                    throw new IdentityApplicationManagementException("Error while checking authorization for user: " +
+                            username + " for application: " + applicationName, e);
+                }
+
+            }
+
+        } catch (UserStoreException e) {
+            throw new IdentityApplicationManagementException("Error getting roles for user: " +
+                    username, e);
+        }
+        return authorizedAppInfo;        
+    }
+
 
     /**
      * @param applicationName
@@ -247,7 +327,7 @@ public class ApplicationMgtUtil {
     }
 
     /**
-     * Delete the role of the app
+     * Delete the role of the app.
      *
      * @param applicationName
      * @throws IdentityApplicationManagementException
@@ -391,7 +471,7 @@ public class ApplicationMgtUtil {
     }
 
     /**
-     * Updates the permissions of the application
+     * Updates the permissions of the application.
      *
      * @param applicationName
      * @param permissions
@@ -470,7 +550,7 @@ public class ApplicationMgtUtil {
     }
 
     /**
-     * Loads the permissions of the application
+     * Loads the permissions of the application.
      *
      * @param applicationName
      * @return
@@ -550,7 +630,7 @@ public class ApplicationMgtUtil {
     }
 
     /**
-     * Delete the resource
+     * Delete the resource.
      *
      * @param applicationName
      * @throws IdentityApplicationManagementException
@@ -595,7 +675,7 @@ public class ApplicationMgtUtil {
     }
 
     /**
-     * Validate application name according to the regex
+     * Validate application name according to the regex.
      *
      * @return validated or not
      */
@@ -621,7 +701,7 @@ public class ApplicationMgtUtil {
     }
 
     /**
-     * Get Property values
+     * Get Property values.
      *
      * @param tenantDomain  Tenant domain
      * @param spIssuer      SP Issuer
@@ -710,7 +790,7 @@ public class ApplicationMgtUtil {
     }
 
     /**
-     * Get Service provider name from XML configuration file
+     * Get Service provider name from XML configuration file.
      *
      * @param spFileStream
      * @param tenantDomain
