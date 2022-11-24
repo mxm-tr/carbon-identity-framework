@@ -133,21 +133,6 @@ public class ApplicationMgtUtil {
         // Initialize list to return
         ArrayList<ApplicationBasicInfo> authorizedAppInfo = new ArrayList<ApplicationBasicInfo>();
 
-        // Check whether roles validation is enabled
-        // If we do not validate the roles, return the whole list of applications
-        boolean validateRoles = validateRoles();
-        if (!validateRoles) {
-            if (log.isDebugEnabled()) {
-                log.debug(String.format("Validating user with application roles is disabled. Therefore, " +
-                        "user: %s will be authorized for all applications", username));
-            }
-            
-            // return new ArrayList<ApplicationBasicInfo>(applicationInfos);
-            return new ArrayList<ApplicationBasicInfo>(
-                (List<ApplicationBasicInfo>) Arrays.asList(applicationInfos));
-
-        }
-
         // Get user store
         try {
             UserStoreManager userStoreManager = CarbonContext.getThreadLocalCarbonContext().getUserRealm()
